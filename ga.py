@@ -9,6 +9,13 @@ class GenerativeAlgorithm:
         self.time_slots = None
         self.preferences = None
         self.num_generations = num_generations
+    
+    
+    @staticmethod
+    def top_k(k, population, func):
+        _fitness = sorted(population, key=lambda x: func(x))
+        return _fitness[:k]
+    
 
     def compile(self, subjects, time_slots, preferences):
         assert len(time_slots) // len(subjects) >= 1, 'too few time slots'
@@ -81,12 +88,6 @@ class GenerativeAlgorithm:
 
         return total_fitness
 
-    @staticmethod
-    def top_k(k, population, func):
-        _fitness = sorted(population, key=lambda x: func(x))
-        return _fitness[:k]
-
-    
     def train(self, verbose=False, **kwargs):
         cross_rate = kwargs.get('cross_rate', 0.5)
         mutation_rate_1 = kwargs.get('mutation_rate_1', 0.5)
