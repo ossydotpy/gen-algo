@@ -90,8 +90,6 @@ class GenerativeAlgorithm:
         num_generations = self.num_generations
 
         population = self.generate_population(self.size)
-        best_fit = None
-        best_fitness = float('-inf')
         
         for generation in range(num_generations):
             temperature = initial_temperature * (final_temperature / initial_temperature) ** (generation / num_generations)
@@ -111,20 +109,16 @@ class GenerativeAlgorithm:
                     )
 
             if new_population:
-                population = new_population
+                selected_population = new_population
             else:
                 break
 
-            current_best = max(population, key=lambda x: self.evaluate_fitness(x))
-            current_best_fitness = self.evaluate_fitness(current_best)
-
-            if current_best_fitness > best_fitness:
-                best_fit = current_best
-                best_fitness = current_best_fitness
+            best_fit = max(new_population, key=lambda x: self.evaluate_fitness(x))
+            current_best_fitness = self.evaluate_fitness(best_fit)
 
             if verbose:
-                print(len(selected_population))
-                print(f"Generation {generation + 1}: Best Fitness = {best_fitness}")
+                print(f'population size: {len(selected_population)}')
+                print(f"Generation {generation + 1}: Best Fitness = {current_best_fitness}")
 
         return best_fit
 

@@ -23,11 +23,11 @@ if __name__ == '__main__':
 
     hparameters = { 'crossover_rate':.6,
                     'mutation_rate_1': .5,
-                    'mutation_rate_2':.3
+                    'mutation_rate_2':.5
                 }
 
     pop_size = len(time_slots)**2
-    model = GenerativeAlgorithm(pop_size, 150000)
+    model = GenerativeAlgorithm(pop_size, 150)
     model.compile(subjects, time_slots, preferences=prefs)
     results = model.train(hparameters)
     # pprint(results)
