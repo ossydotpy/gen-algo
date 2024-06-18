@@ -81,6 +81,12 @@ class GenerativeAlgorithm:
 
         return total_fitness
 
+    @staticmethod
+    def top_k(k, population, func):
+        _fitness = sorted(population, key=lambda x: func(x))
+        return _fitness[:k]
+
+    
     def train(self, verbose=False, **kwargs):
         cross_rate = kwargs.get('cross_rate', 0.5)
         mutation_rate_1 = kwargs.get('mutation_rate_1', 0.5)
@@ -97,6 +103,7 @@ class GenerativeAlgorithm:
             new_population = []
 
             for i in range(len(selected_population) // 2):
+                top_n = self.top_k(2, selected_population, self.evaluate_fitness)
                 parent1 = selected_population[i]
                 parent2 = selected_population[len(selected_population) - i - 1]
 
@@ -110,6 +117,7 @@ class GenerativeAlgorithm:
 
             if new_population:
                 selected_population = new_population
+                selected_population.extend(top_n)
             else:
                 break
 
