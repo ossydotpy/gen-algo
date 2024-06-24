@@ -6,19 +6,33 @@ import random
 random.seed(42)
 if __name__ == '__main__':
 
-    subjects = ['Math', 'Physics', 'Chemistry', 'History', 'Biology', 'Akan', 'Science', 'Social']
+    subjects = ['Math', 'Physics', 'Chemistry', 'History', 'Biology', 'Akan', 'Science', 'Social', 'ML', "Q*"]
+
+    new_subjects = [
+        {'name':'Math','constraints':{'priority':0,'time_preference':'Tue 7-8 PM'}},
+        {'name':'Physics','constraints':{'priority':0,'time_preference':'Tue 7-8 PM'}},
+        {'name':'Chemistry','constraints':{'priority':0,'time_preference':''}},
+        {'name':'History','constraints':{'priority':0,'time_preference':''}},
+        {'name':'Biology','constraints':{'priority':0,'time_preference':''}},
+        {'name':'Akan','constraints':{'priority':0,'time_preference':''}},
+        {'name':'Science','constraints':{'priority':0,'time_preference':''}},
+        {'name':'Science','constraints':{'priority':0,'time_preference':''}},
+    ]
+
     time_slots = [
         'Mon 5-6 PM', 'Mon 6-7 PM',
         'Mon 7-8 PM', 'Mon 8-9 PM', 
         'Tue 7-8 PM', 'Tue 8-9 PM',
         'Wed 7-8 PM', 'Wed 8-9 PM',
         'Thu 7-8 PM', 'Thu 8-9 PM',
+        'Fri 7-8 PM', 'Fri 8-9 PM',
 
     ]
 
     prefs = {
         'Tue 7-8 PM': 'Math',
-        'Thu 7-8 PM': 'Physics'
+        'Thu 7-8 PM': 'Physics',
+        'Thu 8-9 PM':'Q*'
     }
 
     hparameters = { 'crossover_rate':.6,
@@ -27,9 +41,9 @@ if __name__ == '__main__':
                 }
 
     pop_size = len(time_slots)**2
-    model = GenerativeAlgorithm(pop_size, 150)
+    model = GenerativeAlgorithm(pop_size, 20)
     model.compile(subjects, time_slots, preferences=prefs)
-    results = model.train(hparameters)
+    results = model.train(**hparameters, verbose=True)
     # pprint(results)
     # print(model.evaluate_fitness(results))
     table = PrettyTable()

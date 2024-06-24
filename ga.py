@@ -1,4 +1,5 @@
 from collections import Counter
+from pprint import pprint
 import random
 import numpy as np
 
@@ -10,7 +11,7 @@ class GenerativeAlgorithm:
         self.preferences = None
         self.num_generations = num_generations
     
-    
+
     @staticmethod
     def top_k(k, population, func):
         _fitness = sorted(population, key=lambda x: func(x))
@@ -23,10 +24,10 @@ class GenerativeAlgorithm:
         self.time_slots = time_slots
         self.preferences = preferences
 
-    def generate_population(self, size=10):
+    def generate_population(self):
         population = []
 
-        for _ in range(size):
+        for _ in range(self.size):
             candidate = self.preferences.copy() if self.preferences else {}
             remaining_slots = set(self.time_slots) - set(candidate.keys())
             remaining_subjects = list(set(self.subjects) - set(candidate.values()))
@@ -96,7 +97,7 @@ class GenerativeAlgorithm:
         final_temperature = kwargs.get('final_temperature', 0.1)
         num_generations = self.num_generations
 
-        population = self.generate_population(self.size)
+        population = self.generate_population()
         
         for generation in range(num_generations):
             temperature = initial_temperature * (final_temperature / initial_temperature) ** (generation / num_generations)
@@ -126,8 +127,9 @@ class GenerativeAlgorithm:
             current_best_fitness = self.evaluate_fitness(best_fit)
 
             if verbose:
-                print(f'population size: {len(selected_population)}')
-                print(f"Generation {generation + 1}: Best Fitness = {current_best_fitness}")
+                if generation % 10 == 0:
+                    print(f"Generation {generation}: Best Fitness: \t{current_best_fitness}")
+                    pprint(best_fit)
 
         return best_fit
 
