@@ -1,5 +1,10 @@
 # Example usage:
-from lib.src.algorithms.generative_algorithm import GenerativeAlgorithm
+from pprint import pprint
+from lib.src.algorithms.generative_algorithm import (
+    PopulationInitializer,
+    TimetableGenerator,
+)
+from config import CONFIG
 
 subjects = [
     "Math",
@@ -57,13 +62,12 @@ preferences = {
     },
 }
 
-ga = GenerativeAlgorithm(
-    population_size=100,
-    num_generations=0,
+ga = TimetableGenerator(
     subjects=subjects,
     days=days,
     time_slots=time_slots,
     preferences=preferences,
+    config=CONFIG,
 )
 best_timetable = ga.evolve(verbose=True)
 print("Best Timetable:")
