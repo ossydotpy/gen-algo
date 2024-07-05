@@ -73,3 +73,4 @@ best_timetable = ga.evolve(verbose=True)
 print("Best Timetable:")
 for day, schedule in best_timetable.timetable.items():
     print(f"{day}: {schedule}")
+print("diversity: ", best_timetable.calculate_diversity())

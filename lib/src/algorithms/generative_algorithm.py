@@ -1,9 +1,11 @@
 import random
 from typing import Dict, List, Tuple
 
-from lib.src.algorithms.rewards import Rewards
+from lib.src.models.rewards.rewards import reward_objects
+from lib.src.models.penalties.penalties import penalty_objects
 from lib.src.models.individual import Individual
-from lib.src.algorithms.penalties import Penalties
+from lib.src.models.penalties.penalty import Penalties
+from lib.src.models.rewards.reward import Rewards
 from lib.src.utils.validators import TimetableValidator
 
 
@@ -86,13 +88,18 @@ class FitnessEvaluator:
         self.penalties = Penalties()
         self.rewards = Rewards()
 
+        for penalty in penalty_objects:
+            self.penalties.register_penalty(penalty)
+        for reward in reward_objects:
+            self.rewards.register_reward(reward)
+
     def calculate_fitness(self, individual: Individual) -> float:
         if not TimetableValidator.is_valid(individual, self.subjects, self.time_slots):
             return float("-inf")
         penalty = self.penalties.calculate_total_penalty(
             individual, self.preferences, self.subjects, self.time_slots
         )
-        reward = self.rewards.calculate_total_reward(individual, self.preferences)
+        reward = self.rewards.calculate_total_reward(individual, self.preferences, self.subjects, self.time_slots)
         return 1000 - penalty + reward
 
 
