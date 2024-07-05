@@ -7,7 +7,8 @@ class PreffredSlotReward(BaseReward):
     def __init__(self, weight: float):
         self.weight = weight
 
-    def calculate(self, 
+    def calculate(
+        self,
         individual: Individual,
         preferences: Dict,
         subjects: List[str],
@@ -20,8 +21,6 @@ class PreffredSlotReward(BaseReward):
                 if individual.timetable.get(day).get(time) == subject:
                     reward += 1
         return reward * self.weight
-    
 
-reward_objects = [
-    PreffredSlotReward(1)
-    ]
+
+reward_objects = [PreffredSlotReward(1)]

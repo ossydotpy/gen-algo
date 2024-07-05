@@ -9,7 +9,8 @@ class BasePenalty(ABC):
         self.weight = weight
 
     @abstractmethod
-    def calculate(self, 
+    def calculate(
+        self,
         individual: Individual,
         preferences: Dict,
         subjects: List[str],
@@ -26,9 +27,17 @@ class Penalties:
     def register_penalty(self, penalty: BasePenalty):
         self.penalty_objects.append(penalty)
 
-    def calculate_total_penalty(self, individual: Individual, preferences: Dict, subjects: List[str], time_slots: List[str]) -> float:
+    def calculate_total_penalty(
+        self,
+        individual: Individual,
+        preferences: Dict,
+        subjects: List[str],
+        time_slots: List[str],
+    ) -> float:
         total_penalty = 0.0
         for penalty in self.penalty_objects:
-            total_penalty += penalty.calculate(individual, preferences, subjects, time_slots) * penalty.weight
+            total_penalty += (
+                penalty.calculate(individual, preferences, subjects, time_slots)
+                * penalty.weight
+            )
         return total_penalty
-        
