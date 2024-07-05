@@ -1,161 +1,224 @@
+import json
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
+
+from lib.src.algorithms.crossover import Crossover
+from lib.src.algorithms.fitness import FitnessEvaluator
+from lib.src.algorithms.mutatation import Mutation
+from lib.src.algorithms.population import PopulationInitializer
+from lib.src.algorithms.selection import Selection
+
 from lib.src.models.individual import Individual
-from lib.src.algorithms.penalties import Penalties
+from lib.src.models.penalties.penalty import Penalties
+from lib.src.models.rewards.reward import Rewards
+from lib.src.utils.helpers import create_directory_if_not_exists
 from lib.src.utils.validators import TimetableValidator
 
 
-class GenerativeAlgorithm:
+class TimetableGenerator:
     def __init__(
         self,
-        population_size: int,
-        num_generations: int,
+        config: Dict,
         subjects: List[str],
         days: List[str],
         time_slots: List[str],
         preferences: Dict,
+        save_interval: Optional[int] = None,
+        save_at_step: Optional[int] = None,
     ):
-        self.population_size = population_size
-        self.num_generations = num_generations
+        self.config = config
         self.subjects = subjects
         self.days = days
         self.time_slots = time_slots
         self.preferences = preferences
-        self.penalties = Penalties()
-        self.preference_adherent_percentage = 0.0
+        self.save_interval = save_interval
+        self.save_at_step = save_at_step
 
-    def generate_preference_adherent_individual(self) -> Individual:
-        timetable = {day: {} for day in self.days}
+        self.population_initializer = PopulationInitializer(
+            subjects, days, time_slots, preferences
+        )
+        self.fitness_evaluator = FitnessEvaluator(subjects, time_slots, preferences)
+
+        self.current_generation = 0
+        self.population = []
+
+    def checkpoint(self, file_name: str):
+        """Save the state of the timetable generator to a file."""
+        CHECKPOINT_DIR = "checkpoints"
+        create_directory_if_not_exists(CHECKPOINT_DIR)
+        state = {
+            "current_generation": self.current_generation,
+            "config": self.config,
+            "subjects": self.subjects,
+            "days": self.days,
+            "time_slots": self.time_slots,
+            "preferences": self.preferences,
+            "best_individual": max(
+                self.population, key=self.fitness_evaluator.calculate_fitness
+            ).timetable,
+            "population": [ind.timetable for ind in self.population],
+        }
+        file_name = f"{CHECKPOINT_DIR}/{file_name}"
+        with open(file_name, "w") as f:
+            json.dump(state, f, indent=4)
+
+    def load_state(self, file_name: str):
+        """Load the state of the timetable generator from a file."""
+        with open(file_name, "r") as f:
+            state = json.load(f)
+        self.config = state["config"]
+        self.subjects = state["subjects"]
+        self.days = state["days"]
+        self.time_slots = state["time_slots"]
+        self.preferences = state["preferences"]
+        self.population = state["population"]
+        self.current_generation = state["current_generation"]
+        self.population_initializer = PopulationInitializer(
+            self.subjects, self.days, self.time_slots, self.preferences
+        )
+        self.fitness_evaluator = FitnessEvaluator(
+            self.subjects, self.time_slots, self.preferences
+        )
+
+    def initialize_from_partial_state(self, partial_state: Dict[str, Dict[str, str]]):
+        """Initialize the population from a partial state."""
+        self.population = []
+        for _ in range(self.config["population_size"]):
+            individual = self.complete_partial_state(partial_state)
+            self.population.append(individual)
+
+    def complete_partial_solution(
+        self, partial_solution: Dict[str, Dict[str, str]]
+    ) -> Individual:
+        """Complete a partial solution randomly."""
+        complete_solution = {day: {} for day in self.days}
+        remaining_subjects = self.subjects.copy()
+
         for day in self.days:
             for time in self.time_slots:
-                preferred_subject = next(
-                    (
-                        subject
-                        for subject, pref in self.preferences.items()
-                        if pref.get(day) == time
-                    ),
-                    None,
-                )
-                if preferred_subject:
-                    timetable[day][time] = preferred_subject
+                if day in partial_solution and time in partial_solution[day]:
+                    subject = partial_solution[day][time]
+                    complete_solution[day][time] = subject
+                    if subject in remaining_subjects:
+                        remaining_subjects.remove(subject)
                 else:
-                    timetable[day][time] = random.choice(self.subjects + ["Free"])
-        return Individual(timetable)
+                    if remaining_subjects:
+                        subject = random.choice(remaining_subjects)
+                        remaining_subjects.remove(subject)
+                    else:
+                        subject = "Free"
+                    complete_solution[day][time] = subject
 
-    def generate_individual(self) -> Individual:
-        timetable = {day: {} for day in self.days}
-        subjects_copy = self.subjects.copy()
-        total_slots = len(self.days) * len(self.time_slots)
+        return Individual(complete_solution)
 
-        for day in self.days:
-            for time in self.time_slots:
-                if subjects_copy and len(subjects_copy) / total_slots > random.random():
-                    subject = random.choice(subjects_copy)
-                    subjects_copy.remove(subject)
-                    timetable[day][time] = subject
-                else:
-                    timetable[day][time] = "Free"
+    def elitism_with_diversity(
+        self, population: List[Individual], elite_size: int
+    ) -> List[Individual]:
+        """Select the elite individuals from the population based on fitness and diversity.
+        Args: population (List[Individual]): The population.
+              elite_size (int): The number of elite individuals to select."""
 
-        for subject in self.subjects:
-            if subject not in [
-                slot for day in timetable.values() for slot in day.values()
-            ]:
-                day, time = random.choice(
-                    [
-                        (d, t)
-                        for d in self.days
-                        for t in self.time_slots
-                        if timetable[d][t] == "Free"
-                    ]
+        sorted_population = sorted(
+            population, key=self.fitness_evaluator.calculate_fitness, reverse=True
+        )
+
+        elite = []
+        for individual in sorted_population:
+            if len(elite) == 0 or all(
+                individual.calculate_diversity_between(e)
+                > self.config["diversity_threshold"]
+                for e in elite
+            ):
+                elite.append(individual)
+            if len(elite) == elite_size:
+                break
+
+        if len(elite) < elite_size:
+            elite.extend(sorted_population[len(elite) : elite_size])
+
+        return elite
+
+    def evolve(
+        self,
+        initial_solution: Optional[Individual] = None,
+        start_generation: int = 0,
+        max_generations=None,
+        verbose=False,
+    ):
+        """Evolve the timetable for the given number of generations or continue from the current state."""
+        population_size = self.config["population_size"]
+        num_generations = max_generations or self.config["num_generations"]
+        elite_size = int(self.config["elite_percentage"] * population_size)
+
+        if initial_solution:
+            self.population = (
+                self.population_initializer.initialize_population_with_seed(
+                    population_size, initial_solution
                 )
-                timetable[day][time] = subject
+            )
+        else:
+            self.population = self.population_initializer.initialize_population(
+                population_size,
+                self.config.get("initial_preference_adherent_percentage", 0.2),
+            )
 
-        return Individual(timetable)
+        self.current_generation = start_generation
 
-    def initialize_population(self) -> List[Individual]:
-        preference_adherent_count = int(
-            self.population_size * self.preference_adherent_percentage
-        )
-        random_count = self.population_size - preference_adherent_count
-
-        preference_adherent_individuals = [
-            self.generate_preference_adherent_individual()
-            for _ in range(preference_adherent_count)
-        ]
-        random_individuals = [self.generate_individual() for _ in range(random_count)]
-
-        return preference_adherent_individuals + random_individuals
-
-    def adjust_preference_adherent_percentage(self, generation: int):
-        self.preference_adherent_percentage = max(
-            0.1, 0.3 - (generation / self.num_generations) * 0.2
-        )
-
-    def fitness(self, individual: Individual) -> float:
-        if not TimetableValidator.is_valid(individual, self.subjects, self.time_slots):
-            return float("-inf")
-        penalty = self.penalties.calculate_total_penalty(
-            individual, self.preferences, self.subjects, self.time_slots
-        )
-        return 1000 - penalty
-
-    def select_parent(self, population: List[Individual]) -> Individual:
-        tournament_size = 3
-        tournament = random.sample(population, tournament_size)
-        return max(tournament, key=self.fitness)
-
-    def crossover(
-        self, parent1: Individual, parent2: Individual
-    ) -> Tuple[Individual, Individual]:
-        crossover_point = random.randint(1, len(self.days) - 1)
-        child1_timetable = {
-            **dict(list(parent1.timetable.items())[:crossover_point]),
-            **dict(list(parent2.timetable.items())[crossover_point:]),
-        }
-        child2_timetable = {
-            **dict(list(parent2.timetable.items())[:crossover_point]),
-            **dict(list(parent1.timetable.items())[crossover_point:]),
-        }
-        return Individual(child1_timetable), Individual(child2_timetable)
-
-    def mutate(self, individual: Individual, mutation_rate: float):
-        for day in individual.timetable:
-            for time in individual.timetable[day]:
-                if random.random() < mutation_rate:
-                    individual.timetable[day][time] = random.choice(
-                        self.subjects + ["Free"]
-                    )
-
-    def evolve(self, verbose=False):
-        population = self.initialize_population()
-        elite_size = int(0.2 * self.population_size)
-
-        for generation in range(self.num_generations):
+        for generation in range(self.current_generation, num_generations):
+            self.current_generation = generation
             new_population = []
-            for _ in range(self.population_size // 2):
-                parent1 = self.select_parent(population)
-                parent2 = self.select_parent(population)
-                child1, child2 = self.crossover(parent1, parent2)
-                self.mutate(child1, mutation_rate=0.4)
-                self.mutate(child2, mutation_rate=0.4)
+
+            # Add the elite individuals to the new population
+            elite = self.elitism_with_diversity(self.population, elite_size)
+            new_population.extend(elite)
+
+            # Generate offspring
+            while len(new_population) < population_size:
+                parent1 = Selection.tournament_selection(
+                    self.population,
+                    self.fitness_evaluator.calculate_fitness,
+                    self.config.get("tournament_size", 2),
+                    self.config.get("diversity_weight", 0.1),
+                )
+                parent2 = Selection.tournament_selection(
+                    self.population,
+                    self.fitness_evaluator.calculate_fitness,
+                    self.config.get("tournament_size", 2),
+                    self.config.get("diversity_weight", 0.1),
+                )
+                child1, child2 = Crossover.single_point_crossover(
+                    parent1, parent2, self.days
+                )
+
+                mutation_rate = Mutation.adaptive_mutation_rate(
+                    generation,
+                    num_generations,
+                    self.config["initial_mutation_rate"],
+                    self.config["final_mutation_rate"],
+                )
+
+                Mutation.random_mutation(child1, self.subjects, mutation_rate)
+                Mutation.random_mutation(child2, self.subjects, mutation_rate)
+
                 new_population.extend([child1, child2])
 
-            elite_individuals = sorted(population, key=self.fitness, reverse=True)[
-                :elite_size
-            ]
-
-            new_population.extend(elite_individuals + new_population)
-            new_population = new_population[
-                : self.population_size
-            ]
-
-            population = new_population
-            best_individual = max(population, key=self.fitness)
-            best_fitness = self.fitness(best_individual)
-
-            self.adjust_preference_adherent_percentage(generation)
+            # Truncate to population size
+            self.population = new_population[:population_size]
 
             if verbose and generation % 10 == 0:
-                print(f"Generation {generation}: Best Fitness = {best_fitness}")
+                best_individual = max(
+                    self.population, key=self.fitness_evaluator.calculate_fitness
+                )
+                best_fitness = self.fitness_evaluator.calculate_fitness(best_individual)
+                avg_diversity = sum(
+                    ind.calculate_diversity() for ind in self.population
+                ) / len(self.population)
+                print(
+                    f"Generation {generation}: Best Fitness = {best_fitness}, Avg Diversity = {avg_diversity:.2f}"
+                )
 
-        return max(population, key=self.fitness)
+            if self.save_interval and generation % self.save_interval == 0:
+                self.checkpoint(f"generation_{generation}.json")
+            if self.save_at_step and generation == self.save_at_step:
+                self.checkpoint(f"generation_{generation}.json")
+        return max(self.population, key=self.fitness_evaluator.calculate_fitness)

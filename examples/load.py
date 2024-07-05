@@ -1,7 +1,9 @@
 # Example usage:
 from pprint import pprint
-from lib.src.algorithms import TimetableGenerator
-
+from lib.src.algorithms.generative_algorithm import (
+    PopulationInitializer,
+    TimetableGenerator,
+)
 from config import CONFIG
 
 subjects = [
