@@ -68,12 +68,9 @@ ga = TimetableGenerator(
     time_slots=time_slots,
     preferences=preferences,
     config=CONFIG,
-    save_at_step=20,
+    # save_at_step=20,
+    # save_interval=10,
 )
-# best_timetable = ga.evolve(verbose=True)
-# print("Best Timetable:")
-# for day, schedule in best_timetable.timetable.items():
-#     print(f"{day}: {schedule}")
-# print("diversity: ", best_timetable.calculate_diversity())
-ini = ga.load_state("checkpoints/generation_800.json")
-ga.evolve(initial_solution=ini, max_generations=2000, verbose=True)
+
+initial_solution = ga.load_state("checkpoints/240721_003339autocheckpointgen1_2159.0.json")
+ga.evolve(initial_solution=initial_solution, max_generations=500, verbose=True, save_best=True)

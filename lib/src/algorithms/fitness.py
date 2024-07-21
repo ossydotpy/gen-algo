@@ -1,9 +1,9 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from lib.src.models.individual import Individual
 from lib.src.models.penalties.penalty import Penalties
 from lib.src.models.rewards.reward import Rewards
-from lib.src.utils.validators import TimetableValidator
+from lib.src.utils.validators import ScheduleValidator
 from lib.src.models.rewards.rewards import reward_objects
 from lib.src.models.penalties.penalties import penalty_objects
 
@@ -15,20 +15,15 @@ class FitnessEvaluator:
           preferences (Dict): The preferences of the students.
     """
 
-    def __init__(self, subjects: List[str], time_slots: List[str], preferences: Dict):
+    def __init__(self, subjects: List[str], time_slots: List[str], preferences: Optional[Dict]):
         self.subjects = subjects
         self.time_slots = time_slots
         self.preferences = preferences
-        self.penalties = Penalties()
-        self.rewards = Rewards()
-
-        for penalty in penalty_objects:
-            self.penalties.register_penalty(penalty)
-        for reward in reward_objects:
-            self.rewards.register_reward(reward)
+        self.penalties = Penalties(penalty_objects)
+        self.rewards = Rewards(reward_objects)
 
     def calculate_fitness(self, individual: Individual) -> float:
-        if not TimetableValidator.is_valid(individual, self.subjects, self.time_slots):
+        if not ScheduleValidator.is_valid(individual, self.subjects, self.time_slots):
             return float("-inf")
         penalty = self.penalties.calculate_total_penalty(
             individual, self.preferences, self.subjects, self.time_slots

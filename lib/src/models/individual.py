@@ -2,36 +2,36 @@ from typing import Dict
 
 
 class Individual:
-    def __init__(self, timetable: Dict[str, Dict[str, str]]):
-        self.timetable = timetable
+    def __init__(self, schedule: Dict[str, Dict[str, str]]):
+        self.schedule = schedule
         self.subjects = {
             subject
-            for day in timetable.values()
+            for day in schedule.values()
             for subject in day.values()
             if subject != "Free"
         }
 
     def get_slot(self, day: str, time: str) -> str:
-        return self.timetable.get(day).get(time)
+        return self.schedule.get(day).get(time)
 
     def set_slot(self, day: str, time: str, subject: str):
-        self.timetable[day][time] = subject
+        self.schedule[day][time] = subject
 
     def calculate_diversity(self) -> float:
-        "Checks the number of unique subjects in the timetable"
-        flattened_timetable = [
-            subject for day in self.timetable.values() for subject in day.values()
+        "Checks the number of unique subjects in the schedule"
+        flattened_schedule = [
+            subject for day in self.schedule.values() for subject in day.values()
         ]
-        unique_subjects = set(flattened_timetable)
-        return len(unique_subjects) / len(flattened_timetable)
+        unique_subjects = set(flattened_schedule)
+        return len(unique_subjects) / len(flattened_schedule)
 
     def calculate_diversity_between(self, other: "Individual") -> float:
-        timetable1 = [
-            subject for day in self.timetable.values() for subject in day.values()
+        schedule1 = [
+            subject for day in self.schedule.values() for subject in day.values()
         ]
-        timetable2 = [
-            subject for day in other.timetable.values() for subject in day.values()
+        schedule2 = [
+            subject for day in other.schedule.values() for subject in day.values()
         ]
-        return sum(1 for a, b in zip(timetable1, timetable2) if a != b) / len(
-            timetable1
+        return sum(1 for a, b in zip(schedule1, schedule2) if a != b) / len(
+            schedule1
         )

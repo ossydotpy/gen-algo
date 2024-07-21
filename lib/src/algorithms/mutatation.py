@@ -21,7 +21,7 @@ class Mutation:
         individual: Individual, subjects: List[str], mutation_rate: float
     ):
         """Mutate the individual by randomly changing the subject of a slot."""
-        for day in individual.timetable:
-            for time in individual.timetable[day]:
+        for day in individual.schedule:
+            for time in individual.schedule[day]:
                 if random.random() < mutation_rate:
                     individual.set_slot(day, time, random.choice(subjects + ["Free"]))

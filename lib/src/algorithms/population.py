@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from lib.src.models.individual import Individual
 
@@ -10,7 +10,7 @@ class PopulationInitializer:
         subjects: List[str],
         days: List[str],
         time_slots: List[str],
-        preferences: Dict,
+        preferences: Optional[Dict]
     ):
         self.subjects = subjects
         self.days = days
@@ -24,7 +24,7 @@ class PopulationInitializer:
         Args:
             consider_preferences (bool): Whether to consider preferences or not. Defaults to False.
         """
-        timetable = {
+        schedule = {
             day: {time: "Free" for time in self.time_slots} for day in self.days
         }
         subjects_needed = self.subjects * (
@@ -32,22 +32,21 @@ class PopulationInitializer:
         )
         random.shuffle(subjects_needed)
 
-        # Assign preferences first if required
-        if consider_preferences:
+        if self.preferences is not None and consider_preferences:
             for subject, pref in self.preferences.items():
                 for day, time in pref.items():
-                    if time is not None and timetable[day][time] == "Free":
-                        timetable[day][time] = subject
+                    if time is not None:
+                        schedule[day][time] = subject
                         if subject in subjects_needed:
                             subjects_needed.remove(subject)
 
         # Fill remaining slots
         for day in self.days:
             for time in self.time_slots:
-                if timetable[day][time] == "Free" and subjects_needed:
-                    timetable[day][time] = subjects_needed.pop()
+                if schedule[day][time] == "Free" and subjects_needed:
+                    schedule[day][time] = subjects_needed.pop()
 
-        return Individual(timetable)
+        return Individual(schedule)
 
     def initialize_population(
         self, population_size: int, preference_adherent_percentage: float

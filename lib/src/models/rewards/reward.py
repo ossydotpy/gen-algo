@@ -21,23 +21,17 @@ class BaseReward(ABC):
 
 
 class Rewards:
-    def __init__(self) -> None:
-        self.rewards = []  # type: List[BaseReward]
+    def __init__(self, rewards: List[BaseReward] = None) -> None:
+        if rewards is None:
+            self.rewards = []
+        self.rewards = rewards
 
     def register_reward(self, reward: BaseReward) -> None:
         self.rewards.append(reward)
 
     def calculate_total_reward(
         self,
-        individual: Individual,
-        preferences: Dict,
-        subjects: List[str],
-        time_slots: List[str],
+        *args, **kwargs
     ) -> float:
-        total_reward = 0.0
-        for reward in self.rewards:
-            total_reward += (
-                reward.calculate(individual, preferences, subjects, time_slots)
-                * reward.weight
-            )
+        total_reward = sum(reward.calculate(*args, **kwargs)*reward.weight for reward in self.rewards)
         return total_reward

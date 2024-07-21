@@ -8,14 +8,14 @@ class Crossover:
     def single_point_crossover(
         parent1: Individual, parent2: Individual, days: List[str]
     ) -> Tuple[Individual, Individual]:
-        assert len(parent1.timetable) == len(parent2.timetable), "Invalid parents"
+        assert len(parent1.schedule) == len(parent2.schedule), "Invalid parents"
         crossover_point = random.randint(1, len(days) - 1)
-        child1_timetable = {
-            **dict(list(parent1.timetable.items())[:crossover_point]),
-            **dict(list(parent2.timetable.items())[crossover_point:]),
+        child1_schedule = {
+            **dict(list(parent1.schedule.items())[:crossover_point]),
+            **dict(list(parent2.schedule.items())[crossover_point:]),
         }
-        child2_timetable = {
-            **dict(list(parent2.timetable.items())[:crossover_point]),
-            **dict(list(parent1.timetable.items())[crossover_point:]),
+        child2_schedule = {
+            **dict(list(parent2.schedule.items())[:crossover_point]),
+            **dict(list(parent1.schedule.items())[crossover_point:]),
         }
-        return Individual(child1_timetable), Individual(child2_timetable)
+        return Individual(child1_schedule), Individual(child2_schedule)

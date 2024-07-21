@@ -21,23 +21,15 @@ class BasePenalty(ABC):
 
 
 class Penalties:
-    def __init__(self):
-        self.penalty_objects: List[BasePenalty] = []
+    def __init__(self, penalties: List[BasePenalty]=None):
+        if penalties is None:
+            penalties = []
+        self.penalties: List[BasePenalty] = penalties
 
     def register_penalty(self, penalty: BasePenalty):
-        self.penalty_objects.append(penalty)
+        self.penalties.append(penalty)
 
     def calculate_total_penalty(
-        self,
-        individual: Individual,
-        preferences: Dict,
-        subjects: List[str],
-        time_slots: List[str],
+        self,*args, **kwargs
     ) -> float:
-        total_penalty = 0.0
-        for penalty in self.penalty_objects:
-            total_penalty += (
-                penalty.calculate(individual, preferences, subjects, time_slots)
-                * penalty.weight
-            )
-        return total_penalty
+        return sum(penalty.calculate(*args, **kwargs)*penalty.weight for penalty in self.penalties)

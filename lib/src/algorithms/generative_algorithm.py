@@ -1,6 +1,8 @@
+from datetime import datetime
 import json
+from math import inf
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from lib.src.algorithms.crossover import Crossover
 from lib.src.algorithms.fitness import FitnessEvaluator
@@ -9,11 +11,7 @@ from lib.src.algorithms.population import PopulationInitializer
 from lib.src.algorithms.selection import Selection
 
 from lib.src.models.individual import Individual
-from lib.src.models.penalties.penalty import Penalties
-from lib.src.models.rewards.reward import Rewards
 from lib.src.utils.helpers import create_directory_if_not_exists
-from lib.src.utils.validators import TimetableValidator
-
 
 class TimetableGenerator:
     def __init__(
@@ -22,9 +20,9 @@ class TimetableGenerator:
         subjects: List[str],
         days: List[str],
         time_slots: List[str],
-        preferences: Dict,
+        preferences: Optional[Dict] = None,
         save_interval: Optional[int] = None,
-        save_at_step: Optional[int] = None,
+        save_at_step: Optional[Union[int, List[int]]] = None,
     ):
         self.config = config
         self.subjects = subjects
@@ -43,7 +41,7 @@ class TimetableGenerator:
         self.population = []
 
     def checkpoint(self, file_name: str):
-        """Save the state of the timetable generator to a file."""
+        """Save the state of the schedule generator to a file."""
         CHECKPOINT_DIR = "checkpoints"
         create_directory_if_not_exists(CHECKPOINT_DIR)
         state = {
@@ -55,15 +53,16 @@ class TimetableGenerator:
             "preferences": self.preferences,
             "best_individual": max(
                 self.population, key=self.fitness_evaluator.calculate_fitness
-            ).timetable,
-            "population": [ind.timetable for ind in self.population],
+            ).schedule,
+            "population": [ind.schedule for ind in self.population],
         }
-        file_name = f"{CHECKPOINT_DIR}/{file_name}"
+        time_now = datetime.now().strftime("%y%m%d_%H%M%S")
+        file_name = f"{CHECKPOINT_DIR}/{time_now}{file_name}"
         with open(file_name, "w") as f:
             json.dump(state, f, indent=4)
 
     def load_state(self, file_name: str):
-        """Load the state of the timetable generator from a file."""
+        """Load the state of the schedule generator from a file."""
         with open(file_name, "r") as f:
             state = json.load(f)
         self.config = state["config"]
@@ -139,13 +138,14 @@ class TimetableGenerator:
         return elite
 
     def evolve(
-        self,
-        initial_solution: Optional[Individual] = None,
-        start_generation: int = 0,
-        max_generations=None,
-        verbose=False,
+    self,
+    initial_solution: Optional[Individual] = None,
+    start_generation: int = 0,
+    max_generations=None,
+    verbose=False,
+    save_best=False
     ):
-        """Evolve the timetable for the given number of generations or continue from the current state."""
+        """Evolve the schedule for the given number of generations or continue from the current state."""
         population_size = self.config["population_size"]
         num_generations = max_generations or self.config["num_generations"]
         elite_size = int(self.config["elite_percentage"] * population_size)
@@ -163,6 +163,7 @@ class TimetableGenerator:
             )
 
         self.current_generation = start_generation
+        highest_fitness = -inf
 
         for generation in range(self.current_generation, num_generations):
             self.current_generation = generation
@@ -204,12 +205,11 @@ class TimetableGenerator:
 
             # Truncate to population size
             self.population = new_population[:population_size]
+            best_individual = max(self.population, key=self.fitness_evaluator.calculate_fitness)
+            best_fitness = self.fitness_evaluator.calculate_fitness(best_individual)
 
             if verbose and generation % 10 == 0:
-                best_individual = max(
-                    self.population, key=self.fitness_evaluator.calculate_fitness
-                )
-                best_fitness = self.fitness_evaluator.calculate_fitness(best_individual)
+                
                 avg_diversity = sum(
                     ind.calculate_diversity() for ind in self.population
                 ) / len(self.population)
@@ -219,6 +219,17 @@ class TimetableGenerator:
 
             if self.save_interval and generation % self.save_interval == 0:
                 self.checkpoint(f"generation_{generation}.json")
-            if self.save_at_step and generation == self.save_at_step:
-                self.checkpoint(f"generation_{generation}.json")
-        return max(self.population, key=self.fitness_evaluator.calculate_fitness)
+            if self.save_at_step:
+                if isinstance(self.save_at_step, int):
+                    if generation == self.save_at_step:
+                        self.checkpoint(f"generation_{generation}.json")
+                else:
+                    if generation in self.save_at_step:
+                        self.checkpoint(f"generation_{generation}.json")
+
+            if save_best and best_fitness > highest_fitness:
+                if generation != 0:
+                    highest_fitness = best_fitness
+                    self.checkpoint(f"autocheckpointgen{generation}_{highest_fitness}.json")
+
+        return best_individual
